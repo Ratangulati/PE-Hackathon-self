@@ -63,10 +63,9 @@ def list_users():
 @users_bp.route("/users/<int:user_id>")
 def get_user(user_id):
     """GET /users/<id> — fetch a single user by primary key."""
-    try:
-        user = User.get_by_id(user_id)
-    except User.DoesNotExist:
-        return jsonify({"error": "not found"}), 404
+    user = User.get_or_none(User.id == user_id)
+    if user is None:
+        return jsonify({"error": "user not found"}), 404
 
     return jsonify(model_to_dict(user)), 200
 
@@ -93,10 +92,10 @@ def create_user():
 @users_bp.route("/users/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
     """PUT /users/<id> — update email and/or username."""
-    try:
-        user = User.get_by_id(user_id)
-    except User.DoesNotExist:
-        return jsonify({"error": "not found"}), 404
+    
+    user = User.get_or_none(User.id == user_id)
+    if user is None:
+        return jsonify({"error": "user not found"}), 404
 
     data = request.get_json(silent=True)
     if not data:
@@ -133,10 +132,9 @@ def update_user(user_id):
 @users_bp.route("/users/<int:user_id>", methods=["DELETE"])
 def delete_user(user_id):
     """DELETE /users/<id> — remove a user."""
-    try:
-        user = User.get_by_id(user_id)
-    except User.DoesNotExist:
-        return jsonify({"error": "not found"}), 404
+    user = User.get_or_none(User.id == user_id)
+    if user is None:
+        return jsonify({"error": "user not found"}), 404
 
     user.delete_instance()
     return jsonify({"deleted": True, "id": user_id}), 200
