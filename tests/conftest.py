@@ -7,7 +7,7 @@ from peewee import SqliteDatabase
 
 from app.database import db
 from app.models.product import Product
-
+from app.models.user import User
 
 TEST_DB = SqliteDatabase(":memory:")
 MODELS = [Product]
@@ -81,3 +81,26 @@ def sample_products():
             )
         )
     return products
+
+@pytest.fixture()
+def sample_user():
+    """Insert and return a single user for tests that need existing data."""
+    return User.create(
+        email="fixture@example.com",
+        username="fixture_user",
+    )
+ 
+ 
+@pytest.fixture()
+def sample_users():
+    """Insert and return 20 users — enough for pagination tests (per_page=10)
+    and for delete tests that target a fixed ID like /users/200 via seed data."""
+    users = []
+    for i in range(1, 21):
+        users.append(
+            User.create(
+                email=f"user{i}@example.com",
+                username=f"testuser_{i}",
+            )
+        )
+    return users
