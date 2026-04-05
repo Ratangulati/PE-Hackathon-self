@@ -1,5 +1,6 @@
 """Create tables and seed the database with 100 sample products."""
 import random
+from sched import Event
 
 from dotenv import load_dotenv
 
@@ -22,7 +23,7 @@ class _FakeApp:
 init_db(_FakeApp())
 db.connect()
 
-db.create_tables([Product, User], safe=True)
+db.create_tables([Product, User, Url, Event], safe=True)
 print("Tables created.")
 
 # Idempotent: skip seeding if data already exists
