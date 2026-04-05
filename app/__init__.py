@@ -22,8 +22,9 @@ def create_app():
     from app.database import db
     from app.models.product import Product
     from app.models.user import User
-    with app.app_context():
-        db.create_tables([Product, User], safe=True)
+    from app.models.url import Url
+    from app.models.event import Event
+    db.create_tables([Product, User, Url, Event], safe=True)
 
     register_routes(app)
     setup_metrics(app)
