@@ -1,6 +1,6 @@
 """Integration tests — hit the API via Flask test client."""
 import json
-
+import io
 
 class TestHealth:
     def test_health_returns_ok(self, client):
@@ -170,3 +170,149 @@ class TestErrorHandlers:
     def test_405_patch_on_product(self, client, sample_product):
         resp = client.patch(f"/products/{sample_product.id}")
         assert resp.status_code == 405
+
+
+class TestLoadUsersCSV:
+    def test_load_users_csv(self, client):
+        """POST /users/bulk with a CSV file uploads 400 rows successfully."""
+        csv_content = "email,username\n"
+        for i in range(400):
+            csv_content += f"user{i}@example.com,user{i}\n"
+ 
+        data = {
+            "file": (io.BytesIO(csv_content.encode()), "users.csv"),
+            "row_count": 400,
+        }
+        resp = client.post(
+            "/users/bulk",
+            data=data,
+            content_type="multipart/form-data",
+        )
+        assert resp.status_code in (200, 201)
+        body = resp.get_json()
+        assert body is not None
+ 
+ 
+class TestGetUsersList:
+    def test_get_users_list(self, client, sample_users):
+        """GET /users returns 200 with a non-empty list."""
+        resp = client.get("/users")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+ 
+    def test_get_users_pagination(self, client, sample_users):
+        """GET /users?page=1&per_page=10 returns exactly 10 items."""
+        resp = client.get("/users", query_string={"page": 1, "per_page": 10})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert isinstance(data, list)
+        assert len(data) == 10
+ 
+    def test_get_users_list_fields(self, client, sample_users):
+        """Each user in the list exposes expected fields."""
+        resp = client.get("/users")
+        assert resp.status_code == 200
+        user = resp.get_json()[0]
+        assert "id" in user
+        assert "email" in user
+        assert "username" in user
+ 
+ 
+class TestGetUserById:
+    def test_get_user_by_id(self, client, sample_user):
+        """GET /users/<id> returns the correct user."""
+        resp = client.get(f"/users/{sample_user.id}")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["id"] == sample_user.id
+ 
+    def test_get_nonexistent_user(self, client):
+        """GET /users/99999 returns 404 with an error key."""
+        resp = client.get("/users/99999")
+        assert resp.status_code == 404
+        data = resp.get_json()
+        assert "error" in data
+ 
+ 
+class TestCreateUser:
+    def test_create_user(self, client):
+        """POST /users with valid payload returns 201 and echoes submitted fields."""
+        payload = {
+            "email": "testuser_create@example.com",
+            "username": "testuser_create",
+        }
+        resp = client.post("/users", json=payload)
+        assert resp.status_code == 201
+        data = resp.get_json()
+        assert data["email"] == payload["email"]
+        assert data["username"] == payload["username"]
+        assert data.get("id") is not None
+ 
+    def test_create_user_missing_email(self, client):
+        """POST /users without email returns 400."""
+        resp = client.post("/users", json={"username": "noemail"})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "error" in data
+ 
+    def test_create_user_missing_username(self, client):
+        """POST /users without username returns 400."""
+        resp = client.post("/users", json={"email": "nousername@example.com"})
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert "error" in data
+ 
+    def test_create_user_duplicate_email(self, client, sample_user):
+        """POST /users with a duplicate email returns 409."""
+        payload = {"email": sample_user.email, "username": "different_username"}
+        resp = client.post("/users", json=payload)
+        assert resp.status_code == 409
+ 
+    def test_create_user_no_json_body(self, client):
+        """POST /users with non-JSON body returns 400."""
+        resp = client.post("/users", data="not json", content_type="text/plain")
+        assert resp.status_code == 400
+ 
+ 
+class TestUpdateUser:
+    def test_update_user(self, client, sample_user):
+        """PUT /users/<id> with a new username returns 200 and updated value."""
+        resp = client.put(
+            f"/users/{sample_user.id}",
+            json={"username": "updated_username"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["username"] == "updated_username"
+ 
+    def test_update_nonexistent_user(self, client):
+        """PUT /users/99999 returns 404."""
+        resp = client.put("/users/99999", json={"username": "ghost"})
+        assert resp.status_code == 404
+        assert "error" in resp.get_json()
+ 
+    def test_update_user_no_body(self, client, sample_user):
+        """PUT /users/<id> with empty body returns 400."""
+        resp = client.put(f"/users/{sample_user.id}", json={})
+        assert resp.status_code == 400
+ 
+ 
+class TestDeleteUser:
+    def test_delete_user(self, client, sample_users):
+        """DELETE /users/200 returns 200 or 204."""
+        resp = client.delete("/users/200")
+        assert resp.status_code in (200, 204)
+ 
+    def test_delete_nonexistent_user(self, client):
+        """DELETE /users/99999 returns 404."""
+        resp = client.delete("/users/99999")
+        assert resp.status_code == 404
+        assert "error" in resp.get_json()
+ 
+    def test_delete_user_twice(self, client, sample_user):
+        """Deleting the same user twice returns 404 on the second attempt."""
+        client.delete(f"/users/{sample_user.id}")
+        resp = client.delete(f"/users/{sample_user.id}")
+        assert resp.status_code == 404
