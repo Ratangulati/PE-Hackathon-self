@@ -10,7 +10,7 @@ from app.models.product import Product
 from app.models.user import User
 
 TEST_DB = SqliteDatabase(":memory:")
-MODELS = [Product]
+MODELS = [Product, User]
 
 
 def _test_init_db(app):
@@ -50,8 +50,8 @@ def app():
 
 @pytest.fixture()
 def client(app):
-    """Flask test client for making HTTP requests."""
-    return app.test_client()
+    with app.app_context():
+        yield app.test_client()
 
 
 @pytest.fixture()

@@ -301,18 +301,20 @@ class TestUpdateUser:
  
 class TestDeleteUser:
     def test_delete_user(self, client, sample_users):
-        """DELETE /users/200 returns 200 or 204."""
-        resp = client.delete("/users/200")
+        """DELETE an existing user returns 200 or 204."""
+        user_id = sample_users[-1].id
+        resp = client.delete(f"/users/{user_id}")
         assert resp.status_code in (200, 204)
- 
+
     def test_delete_nonexistent_user(self, client):
         """DELETE /users/99999 returns 404."""
         resp = client.delete("/users/99999")
         assert resp.status_code == 404
         assert "error" in resp.get_json()
- 
+
     def test_delete_user_twice(self, client, sample_user):
         """Deleting the same user twice returns 404 on the second attempt."""
-        client.delete(f"/users/{sample_user.id}")
-        resp = client.delete(f"/users/{sample_user.id}")
+        user_id = sample_user.id
+        client.delete(f"/users/{user_id}")
+        resp = client.delete(f"/users/{user_id}")
         assert resp.status_code == 404
